@@ -33,7 +33,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        log.info("LoginInterceptor is Working...");
+        // log.info("LoginInterceptor is Working...");
 
         UserDTO user = UserHolder.getUser();
         if (user == null) {
