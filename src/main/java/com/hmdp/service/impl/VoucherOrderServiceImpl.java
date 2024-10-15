@@ -10,6 +10,7 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +19,7 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- *  服务实现类
+ * 服务实现类
  * </p>
  *
  * @author 虎哥
@@ -32,13 +33,12 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedisIdWorker redisIdWorker;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Result seckillVoucher(Long voucherId) {
         // 1.查询优惠券
         SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
 
         // 2.判断秒杀是否开始
-        if (voucher.getBeginTime().isAfter(LocalDateTime.now())){
+        if (voucher.getBeginTime().isAfter(LocalDateTime.now())) {
             return Result.fail("秒杀尚未开始！");
         }
 
@@ -50,6 +50,24 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         // 4.判断库存是否充足
         if (voucher.getStock() < 1) {
             return Result.fail("库存不足！");
+        }
+        Long userId = UserHolder.getUser().getId();
+
+        synchronized (userId.toString().intern()) {
+            // 获取代理对象（和事务相关的）
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucherOrder(voucherId);
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Result createVoucherOrder(Long voucherId) {
+        // 4.5一人一单判断
+        Long userId = UserHolder.getUser().getId();
+
+        Long count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
+        if (count > 0) {
+            return Result.fail("用户已经购买过一次！");
         }
 
         // 5.扣减库存
@@ -72,6 +90,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
         // 7.返回订单号
         return Result.ok(orderId);
-
     }
+
 }
