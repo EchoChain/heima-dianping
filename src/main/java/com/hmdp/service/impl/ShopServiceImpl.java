@@ -11,6 +11,7 @@ import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.CacheClient;
 import com.hmdp.utils.RedisData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,17 +41,26 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Autowired
     private StringRedisTemplate redisTemplate;
+    @Autowired
+    private CacheClient cacheClient;
 
     @Override
     public Result queryById(Long id) {
-        // 存在缓存穿透的查询
-        // Shop shop = queryWithPassThrough(id);
+        Shop shop;
+        // 使用缓存空对象解决缓存穿透
+        // shop = queryWithPassThrough(id);
 
-        // 使用互斥锁解决缓存穿透
-        // Shop shop = queryWithMutex(id);
+        // 使用互斥锁解决缓存击穿
+        // shop = queryWithMutex(id);
 
-        // 使用逻辑过期解决缓存穿透
-        Shop shop = queryWithLogicExpire(id);
+        // 使用逻辑过期解决缓存击穿
+        // shop = queryWithLogicExpire(id);
+
+        // 使用工具类解决缓存穿透
+        // shop = cacheClient.queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.SECONDS);
+
+        // 使用工具类解决缓存击穿
+        shop = cacheClient.queryWithLogicExpire(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.SECONDS);
 
         if (shop == null) {
             return Result.fail("店铺不存在");
@@ -158,27 +168,29 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
 
     public Shop queryWithPassThrough(Long id) {
+        // 在缓存中查找
         String shopJson = redisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
         if (shopJson != null && !shopJson.isEmpty()) {
             Shop shop = JSONObject.parseObject(shopJson, Shop.class);
             return shop;
         }
 
-        // 判断是否是存入的空对象
+        // 判断缓存中是否是存入的空对象
         if (shopJson != null) {
             // 此时 shopJson 为空串 ""
             return null;
         }
 
-        // NOT existed in DB
+        // 在数据库查找
         Shop shop = getById(id);
+
+        // 数据库中不存在 缓存null 返回null
         if (shop == null) {
             redisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
             return null;
         }
 
-        // NOT existed in Redis
-        // BUT existed in DB
+        // 数据库中存在 缓存shop 返回shop
         shopJson = JSON.toJSONString(shop);
         redisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, shopJson, CACHE_SHOP_TTL, TimeUnit.MINUTES);
         return shop;
