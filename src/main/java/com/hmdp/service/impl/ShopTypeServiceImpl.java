@@ -1,6 +1,7 @@
 package com.hmdp.service.impl;
 
 import com.alibaba.fastjson2.JSON;
+import com.hmdp.dto.Result;
 import com.hmdp.entity.ShopType;
 import com.hmdp.mapper.ShopTypeMapper;
 import com.hmdp.service.IShopTypeService;
@@ -30,30 +31,36 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
     private StringRedisTemplate redisTemplate;
 
     @Override
-    public List<ShopType> listWithCache() {
+    public Result listWithCache() {
         List<ShopType> list = new ArrayList<>();
 
-        // existed in Redis
+        // 从Redis缓存中查询ShopType数据
         if (Boolean.TRUE.equals(redisTemplate.hasKey(CACHE_SHOPTYPE_KEY))) {
             Set<String> set = redisTemplate.opsForZSet().range(CACHE_SHOPTYPE_KEY, 0, -1);
             if (set != null) {
                 list = set.stream()
                         .map(shopTypeStr -> JSON.parseObject(shopTypeStr, ShopType.class))
                         .toList();
+                return Result.ok(list);
             }
         }
 
-        // NOT existed in Redis
-        // BUT existed in DB
+        // 缓存中不存在 在数据库中查询ShopType数据
         list = query().orderByAsc("sort").list();
 
+        // 数据库中没查询到ShopType 返回fail
+        if (list.isEmpty()) {
+            return Result.fail("店铺列表为空!");
+        }
+
+        // 数据库中查询到ShopType
         HashSet<ZSetOperations.TypedTuple<String>> tuples = new HashSet<>();
         list.forEach(shopType -> tuples.add(new DefaultTypedTuple<>(
                 JSON.toJSONString(shopType),
                 shopType.getSort() * 1.0
         )));
 
-        redisTemplate.opsForZSet().add(CACHE_SHOPTYPE_KEY, tuples);
-        return list;
+        redisTemplate.opsForZSet().add(CACHE_SHOPTYPE_KEY, tuples);  // 将查到的数据存入Redis
+        return Result.ok(list);  // 返回查到的数据
     }
 }

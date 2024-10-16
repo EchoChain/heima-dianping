@@ -27,7 +27,6 @@ public class ShopTypeController {
 
     @GetMapping("list")
     public Result queryTypeList() {
-        List<ShopType> typeList = typeService.listWithCache();
-        return Result.ok(typeList);
+        return typeService.listWithCache();
     }
 }
