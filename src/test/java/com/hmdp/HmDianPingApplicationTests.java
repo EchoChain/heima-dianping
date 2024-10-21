@@ -1,5 +1,6 @@
 package com.hmdp;
 
+import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import org.junit.jupiter.api.Test;
