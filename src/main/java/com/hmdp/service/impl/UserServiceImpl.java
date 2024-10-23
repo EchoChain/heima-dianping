@@ -19,6 +19,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +41,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private StringRedisTemplate redisTemplate;
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public Result sendCode(String phone) {
@@ -115,5 +118,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 2. 保存用户
         save(user);
         return user;
+    }
+
+    @Override
+    public List<User> list(){
+        return userMapper.list();
     }
 }

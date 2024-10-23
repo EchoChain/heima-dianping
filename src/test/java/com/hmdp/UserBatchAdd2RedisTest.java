@@ -52,6 +52,7 @@ public class UserBatchAdd2RedisTest {
             // 写入token
             fileWriter.write(token);
             fileWriter.write("\r\n");
+            fileWriter.flush();
         }
 
         fileWriter.close();

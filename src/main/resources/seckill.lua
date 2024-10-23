@@ -17,6 +17,6 @@ end
 -- 扣库存 下单（保存用户） 返回0
 redis.call('incrby', stockKey, -1)
 redis.call('sadd', orderKey, userId)
--- 发消息到消息队列中 XADD stream.orders * k1 v1 [k2 v2...]
+-- 发消息到消息队列中 XADD stream.orders * k1 v1 [k2 v2][k3 v3]
 redis.call('xadd', 'stream.orders', '*', 'id', orderId, 'userId', userId, 'voucherId', voucherId)
 return 0
