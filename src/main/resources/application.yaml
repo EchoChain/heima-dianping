@@ -26,3 +26,5 @@ mybatis-plus:
 logging:
   level:
     com.hmdp: debug
+    org.springframework.web: DEBUG
+    org.springframework.web.servlet: DEBUG
